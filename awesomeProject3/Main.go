@@ -1,41 +1,46 @@
 package main
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"fmt"
 )
 
+/* an array with 4 rows and 2 columns*/
+var codebook = [4][2]int{{0b00, 0b01}, {0b01, 0b10}, {0b10, 0b11}, {0b11, 0b00}}
+var message = [4]int{0b00, 0b01, 0b10, 0b11}
+var cipher = [4]int{}
+var iv int = 0b10
+
+func codebookLookup(xor int) (lookupValue int) {
+	var i, j int = 0, 0
+	for i = 0; i < 4; i++ {
+		if codebook[i][j] == xor {
+			j++
+			lookupValue = codebook[i][j]
+			break
+		}
+	}
+	return lookupValue
+}
 func main() {
-	// Hardcoded key and IV
-	key := []byte("0123456789ABCDEF")
-	iv := []byte("ABCDEF1234567890")
-
-	// Get plaintext from user
-	var plaintext string
-	fmt.Print("Enter plaintext: ")
-	fmt.Scanln(&plaintext)
-
-	// Convert plaintext to byte slice
-	plaintextBytes := []byte(plaintext)
-
-	// Pad plaintext to a multiple of the block size
-	if len(plaintextBytes)%aes.BlockSize != 0 {
-		padding := bytes.Repeat([]byte{0}, aes.BlockSize-len(plaintextBytes)%aes.BlockSize)
-		plaintextBytes = append(plaintextBytes, padding...)
+	var xor int = 0
+	var lookupValue int = 0
+	lookupValue = codebookLookup(iv)
+	//Display the original Message
+	for i := 0; i < 4; i++ {
+		fmt.Printf("The plaintext value of a is %02b\n", message[i])
 	}
-
-	// Create new AES cipher block
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
+	//Ciphertext
+	for i := 0; i < 4; i++ {
+		xor = message[i] ^ lookupValue
+		lookupValue = codebookLookup(xor)
+		fmt.Printf("The ciphered value of a is %02b\n", xor)
+		cipher[i] += xor
 	}
-
-	// CBC Mode
-	fmt.Println("\nCBC Mode:")
-	ciphertextCBC := make([]byte, len(plaintextBytes))
-	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(ciphertextCBC, plaintextBytes)
-	fmt.Printf("Ciphertext: %x\n", ciphertextCBC)
+	//Plaintext
+	lookupValue = codebookLookup(iv)
+	for i := 0; i < 4; i++ {
+		xor = cipher[i] ^ lookupValue
+		lookupValue = codebookLookup(cipher[i])
+		fmt.Printf("The plaintext value of a is %02b\n", xor)
+	}
 }
