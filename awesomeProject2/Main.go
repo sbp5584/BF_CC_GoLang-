@@ -1,49 +1,49 @@
 package main
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"fmt"
 )
 
+var codebook = [4][2]int{{0b00, 0b01}, {0b01, 0b10}, {0b10, 0b11}, {0b11, 0b00}}
+var message = [4]int{0b00, 0b01, 0b10, 0b11}
+var cipherOFB = [4]int{}
+var iv int = 0b10
+
+func codebookLookup(XOR int) (lookupValue int) {
+	var i, j int = 0, 0
+	for i = 0; i < 4; i++ {
+		if codebook[i][j] == XOR {
+			j++
+			lookupValue = codebook[i][j]
+			break
+		}
+	}
+	return lookupValue
+}
+
 func main() {
-	// Hardcoded key and IV
-	key := []byte("0123456789ABCDEF")
-	iv := []byte("ABCDEF1234567890")
+	var XOR int = 0
+	var lookupValue int = 0
+	lookupValue = codebookLookup(iv)
 
-	// Get plaintext from user
-	var plaintext string
-	fmt.Print("Enter plaintext: ")
-	fmt.Scanln(&plaintext)
-
-	// Convert plaintext to byte slice
-	plaintextBytes := []byte(plaintext)
-
-	// Pad plaintext to a multiple of the block size
-	if len(plaintextBytes)%aes.BlockSize != 0 {
-		padding := bytes.Repeat([]byte{0}, aes.BlockSize-len(plaintextBytes)%aes.BlockSize)
-		plaintextBytes = append(plaintextBytes, padding...)
+	for i := 0; i < 4; i++ {
+		fmt.Printf("The plaintext value of is %02b\n", message[i])
 	}
 
-	// Create new AES cipher block
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		panic(err)
+	//Ciphertext
+	lookupValue = iv
+	for i := 0; i < 4; i++ {
+		XOR = message[i] ^ lookupValue
+		lookupValue = codebookLookup(lookupValue)
+		fmt.Printf("The OFB ciphered value of is %02b\n", XOR)
+		cipherOFB[i] += XOR
 	}
 
-	// ECB Mode
-	fmt.Println("\nECB Mode:")
-	ciphertextECB := make([]byte, len(plaintextBytes))
-	for i := 0; i < len(plaintextBytes); i += aes.BlockSize {
-		block.Encrypt(ciphertextECB[i:i+aes.BlockSize], plaintextBytes[i:i+aes.BlockSize])
+	//OFB Plaintext
+	lookupValue = iv
+	for i := 0; i < 4; i++ {
+		XOR = cipherOFB[i] ^ lookupValue
+		lookupValue = codebookLookup(lookupValue)
+		fmt.Printf("The plaintext value of is %02b\n", XOR)
 	}
-	fmt.Printf("Ciphertext: %x\n", ciphertextECB)
-
-	// OFB Mode
-	fmt.Println("\nOFB Mode:")
-	ciphertextOFB := make([]byte, len(plaintextBytes))
-	stream := cipher.NewOFB(block, iv)
-	stream.XORKeyStream(ciphertextOFB, plaintextBytes)
-	fmt.Printf("Ciphertext: %x\n", ciphertextOFB)
 }
